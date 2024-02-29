@@ -58,23 +58,6 @@ class Record:
 
     def add_birthday(self, birthday: str):
         self.birthday = Birthday(birthday)
-        
-    def get_upcoming_birthdays(self, address_book):
-        tdate = datetime.today().date()
-        upcoming_birthdays = []
-
-        for record_list in address_book.data.values():
-            for record in record_list:
-                if record.birthday:
-                    bdate_components = record.birthday.value.split('.')
-                    bdate = datetime.strptime(f"{tdate.year}-{bdate_components[1]}-{bdate_components[0]}", "%Y-%m-%d").date()
-                    days_between = (bdate - tdate).days
-                    week_day = bdate.isoweekday()
-
-                    if 0 <= days_between < 7 and (week_day < 6 or (bdate + timedelta(days=(1 if week_day == 6 else 2))).weekday() == 0):
-                        formatted_birthday = bdate.strftime("%d %B").replace(" 0", " ")
-                        upcoming_birthdays.append(f"{record.name.value} {formatted_birthday}")
-        return upcoming_birthdays
 
     def remove_phone(self, phone_number: str):
         self.phones = [phone for phone in self.phones if phone.value != phone_number]
@@ -95,14 +78,6 @@ class Record:
                 return phone
         return None
     
-    def show_all_contacts(self, address_book):
-        if not address_book.data:
-            return "No contacts found."
-        else:
-            headers = []
-            table_data = [[record.name.value, '; '.join(phone.value for phone in record.phones), record.birthday.value if record.birthday else "N/A"] for record_list in address_book.data.values() for record in record_list]
-            return tabulate(table_data, headers=headers, tablefmt="grid")
-    
     def show_birthday(self):
         if self.birthday:
             return f"{self.name.value}'s birthday is on {self.birthday.value}"
@@ -119,12 +94,38 @@ class AddressBook(UserDict):
             self.data[record.name.value].append(record)
         else:
             self.data[record.name.value] = [record]
+            
+    def get_upcoming_birthdays(self):
+        tdate = datetime.today().date()
+        upcoming_birthdays = []
+
+        for record_list in self.data.values():
+            for record in record_list:
+                if record.birthday:
+                    bdate_components = record.birthday.value.split('.')
+                    bdate = datetime.strptime(f"{tdate.year}-{bdate_components[1]}-{bdate_components[0]}", "%Y-%m-%d").date()
+                    days_between = (bdate - tdate).days
+                    week_day = bdate.isoweekday()
+
+                    if 0 <= days_between < 7 and (week_day < 6 or (bdate + timedelta(days=(1 if week_day == 6 else 2))).weekday() == 0):
+                        formatted_birthday = bdate.strftime("%d %B")
+                        upcoming_birthdays.append(f"{record.name.value} {formatted_birthday}")
+        return upcoming_birthdays
+
 
     def find(self, name: str) -> Record:
         if name in self.data:
             return self.data[name][-1]
         else:
             return None
+        
+    def show_all_contacts(self):
+        if not self.data:
+            return "No contacts found."
+        else:
+            headers = []
+            table_data = [[record.name.value, '; '.join(phone.value for phone in record.phones), record.birthday.value if record.birthday else "N/A"] for record_list in self.data.values() for record in record_list]
+            return tabulate(table_data, headers=headers, tablefmt="grid")
 
     def delete(self, name: str):
         if name in self.data:
@@ -225,7 +226,7 @@ def main():
                 print("Invalid format. Please use: show-birthday [name]")
 
         elif command == "birthdays":
-            upcoming_birthdays = record.get_upcoming_birthdays(book)
+            upcoming_birthdays = book.get_upcoming_birthdays()
             if not upcoming_birthdays:
                 print("No upcoming birthdays in the next week.")
             else:
@@ -234,7 +235,7 @@ def main():
                     print(record)
                     
         elif command == "all":
-            all_contacts = record.show_all_contacts(book)
+            all_contacts = book.show_all_contacts()
             print(all_contacts)
 
         else:
